@@ -1,0 +1,238 @@
+<!-- 
+	 * jQuery UI on Google Maps
+	 * Copyright (c) 2008 Marc Grabanski
+	 * Licensed under the MIT license.
+-->
+<html>
+	<head>
+		<title>Google Maps and jQuery</title>
+		<!-- http://code.google.com/apis/ajaxlibs/documentation/ -->
+		<!-- <script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAAO8QGDz3N7hJwBcjSw43ogxRS5p3kVihAnexq18kr3GNB0I18UBRTekI-la-T0zTtmlaekSFMnvi-Fw"></script> -->
+		<script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAAZBe7uHI90ESk2XAmWRL3RxR6u04U0tImA3bfwZ3-HKdEno7z2xRk2YE6OkudtBX5qy0vLrgbf1DUCg"></script>
+		<script type="text/javascript" charset="utf-8">
+			google.load("maps", "2.x");
+			google.load("jquery", "1.3");
+		</script>
+		<script src="jquery-ui-personalized-1.6rc6.min.js" type="text/javascript" charset="utf-8"></script>
+		<link rel="stylesheet" href="jquery-ui-themeroller/ui.all.css" type="text/css" media="screen" title="no title" charset="utf-8">
+		<script src="jquery-ui-themswitcher.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript" charset="utf-8">
+			$(document).ready(function(){
+				var map = new GMap2(document.getElementById('map'));
+				var burnsvilleMN = new GLatLng(44.797916,-93.278046);
+				map.setCenter(burnsvilleMN, 8);
+				
+				// Google Example Code: 
+				// http://code.google.com/apis/maps/documentation/overlays.html#Icons_overview
+
+				// setup 10 random points
+				var bounds = map.getBounds();
+				var southWest = bounds.getSouthWest();
+				var northEast = bounds.getNorthEast();
+				var lngSpan = northEast.lng() - southWest.lng();
+				var latSpan = northEast.lat() - southWest.lat();
+				var markers = [];
+				for (var i = 0; i < 10; i++) {
+				    var point = new GLatLng(southWest.lat() + latSpan * Math.random(),
+				        southWest.lng() + lngSpan * Math.random());
+					marker = new GMarker(point);
+					map.addOverlay(marker);
+					markers[i] = marker;
+				}
+				
+				$(markers).each(function(i,marker){
+					$("<li />").addClass('ui-state-default ui-corner-all')
+						.uiHover()
+						.html("Point "+i)
+						.click(function(){
+							displayPoint(marker, i);
+						})
+						.appendTo("#list");
+						
+					GEvent.addListener(marker, "click", function(){
+						displayPoint(this, i);
+					});
+				});
+				
+				$('<div id="message" />').appendTo(map.getPane(G_MAP_FLOAT_SHADOW_PANE));
+				
+				function displayPoint(marker, index){
+					$("#message").hide().empty();
+					
+					var closeButton = $(iconHTML("close"))
+						.click(
+							function(){ $("#message").fadeOut(); 
+						})
+						.css({ top:'5px', right:'5px' })
+						.uiHover();
+					
+					//$("#accordion-template").clone().show()
+					$("#tabs-template").clone().show()
+						.attr("id","").appendTo("#message")
+						.find(".index").html(index.toString()).end()
+						.find(".dialog").click(function(){ $("#dialog").dialog("open"); }).end()
+						.tabs()
+						.find(".ui-tabs-nav").append(closeButton);
+				
+					var moveEnd = GEvent.addListener(map, "moveend", function(){
+						var markerOffset = map.fromLatLngToDivPixel(marker.getPoint());
+						$("#message")
+							.css({ top:markerOffset.y, left:markerOffset.x })
+							.show("drop", { direction:"right" });
+				
+						GEvent.removeListener(moveEnd);
+					});
+					
+					left = map.getBounds().getSouthWest().lat();
+					right = map.getBounds().getNorthEast().lat();
+					offset = (right - left) * .25;
+					map.panTo(new GLatLng(marker.getPoint().lat(), marker.getPoint().lng()+offset));
+				}
+				
+				GEvent.addListener(map, 'zoomend', function(){
+					$("#message").hide();
+				});
+				
+				$("#dialog").show().dialog({
+					autoOpen:false,
+					modal:true,
+					overlay:{ background:"#000", opacity:0.7 },
+					width:350, height:300
+				});
+				
+				$("#list").appendTo("#map").css({ top:'10px', right:'10px' });
+				
+				/* Build Controls */
+				$(iconHTML("up"))
+					.css({ top:'10px', left:'32px' })
+					.click(function(){
+						map.panDirection(0, 1);
+					})
+					.appendTo("#map");
+					
+				$(iconHTML("left"))
+					.css({ top:'32px', left:'10px' })
+					.click(function(){
+						map.panDirection(1, 0);
+					})
+					.appendTo("#map");
+					
+				$(iconHTML("right"))
+					.css({ top:'32px', left:'54px' })
+					.click(function(){
+						map.panDirection(-1, 0);
+					})
+					.appendTo("#map");
+					
+				$(iconHTML("down"))
+					.css({ top:'54px', left:'32px' })
+					.click(function(){
+						map.panDirection(0, -1);
+					})
+					.appendTo("#map");
+					
+				$(iconHTML("plus"))
+					.css({ top:'84px', left:'32px' })
+					.click(function(){
+						map.zoomIn();
+						$("#map-slider").slider("value", map.getZoom());
+					})
+					.appendTo("#map");
+					
+				$(iconHTML("minus"))
+					.css({ top:'325px', left:'32px' })
+					.click(function(){
+						map.zoomOut();
+						$("#map-slider").slider("value", map.getZoom());
+					})
+					.appendTo("#map");
+				
+				$("<div />").attr('id','map-slider').height(200)
+					.slider({ 
+						orientation: "vertical", 
+						min:0, max:19, step:1, value:map.getZoom(),
+						change:function(){
+							map.setZoom( $(this).slider("value") );
+						}
+					})
+					.css({ top:'115px', left:'38px', position:'absolute' })
+					.appendTo("#map");
+					
+				$("#themes").themeswitcher();
+			});
+			
+			function iconHTML(type) {
+				switch (type) {
+					case "up" 		: iconClass = 'ui-icon-circle-arrow-n'; break;
+					case "down" 	: iconClass = 'ui-icon-circle-arrow-s'; break;
+					case "left" 	: iconClass = 'ui-icon-circle-arrow-w'; break;
+					case "right" 	: iconClass = 'ui-icon-circle-arrow-e'; break;
+					case "plus" 	: iconClass = 'ui-icon-circle-plus'; break;
+					case "minus" 	: iconClass = 'ui-icon-circle-minus'; break;
+					case "close"	: iconClass = 'ui-icon-closethick'; break;
+				}
+				return '<div class="icon ui-state-default ui-corner-all"><span class="ui-icon '+iconClass+'" /></div>';
+			}
+			
+			$.fn.uiHover = function(){
+				return this.each(function(){
+					$(this).hover(
+						function(){ $(this).addClass('ui-state-hover'); },
+						function(){ $(this).removeClass('ui-state-hover'); }
+					);
+				});
+			}
+		</script>
+		<style type="text/css" media="screen">
+			body { font-size:14px; }
+			#map { float:left; width:700px; height:500px; margin-top:10px; }
+			#message, #list { position:absolute; }
+			#list li { list-style:none; padding:3px; margin-bottom:2px; }
+			#list li:hover { cursor:pointer; cursor:hand; }
+			.accordion, .tabs { font-size:12px!important; width:300px; }
+			.ui-dialog, .ui-slider { font-size:12px!important; }
+			.icon { float:left; position:absolute; cursor:pointer; cursor:hand; padding:3px; }
+		</style>
+	</head>
+	<body>
+		<div id="themes"></div>
+		<div id="map"></div>
+		<div id="list"></div>
+		
+		<div id="dialog" title="Dialog Title Goes Here" style="display:none;">
+			<p>Content of the dialog</p>
+		</div>
+		
+		<ul id="accordion-template" class="accordion" style="display:none;">
+			<li>
+				<h3 class="header">Heading 1</h3>
+				<div>Point <span class="index">x</span>.</div>
+			</li>
+			<li>
+				<h3 class="header">Heading 2</h3>
+				<div>Test content <a href="#" class="dialog">dialog link</a>.</div>
+			</li>
+			<li>
+				<h3 class="header">Heading 3</h3>
+				<div>Test content goes here.</div>
+			</li>
+		</ul>
+		
+		<div id="tabs-template" class="tabs" style="display:none">
+			<ul>
+				<li><a href="#test1">Test1</a></li>
+				<li><a href="#test2">Test2</a></li>
+				<li><a href="#test3">Test3</a></li>
+			</ul>
+			<div id="test1">
+				<p>You are at point #<span class="index">x</span></p>
+			</div>
+			<div id="test2">
+				<p>This is some <a href="#" class="dialog">dialog link</a>.</p>
+			</div>
+			<div id="test3">
+				<p>There is more content that goes here.</p>
+			</div>
+		</div>
+	</body>
+</html>
