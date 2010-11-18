@@ -5,160 +5,228 @@
 -->
 <html>
 	<head>
-		<title>Google Maps and jQuery</title>
-		<!-- http://code.google.com/apis/ajaxlibs/documentation/ -->
-		<!-- <script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAAO8QGDz3N7hJwBcjSw43ogxRS5p3kVihAnexq18kr3GNB0I18UBRTekI-la-T0zTtmlaekSFMnvi-Fw"></script> -->
-		<script type="text/javascript" src="http://www.google.com/jsapi?key=ABQIAAAAZBe7uHI90ESk2XAmWRL3RxR6u04U0tImA3bfwZ3-HKdEno7z2xRk2YE6OkudtBX5qy0vLrgbf1DUCg"></script>
-		<script type="text/javascript" charset="utf-8">
-			google.load("maps", "2.x");
-			google.load("jquery", "1.3");
-		</script>
-		<script src="jquery-ui-personalized-1.6rc6.min.js" type="text/javascript" charset="utf-8"></script>
-		<link rel="stylesheet" href="jquery-ui-themeroller/ui.all.css" type="text/css" media="screen" title="no title" charset="utf-8">
-		<script src="jquery-ui-themswitcher.js" type="text/javascript" charset="utf-8"></script>
-		<script type="text/javascript" charset="utf-8">
-			$(document).ready(function(){
-				var map = new GMap2(document.getElementById('map'));
-				var burnsvilleMN = new GLatLng(44.797916,-93.278046);
-				map.setCenter(burnsvilleMN, 8);
-				
-				// Google Example Code: 
-				// http://code.google.com/apis/maps/documentation/overlays.html#Icons_overview
+		<title>Google Maps and jQuery UI</title>
+<script src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.4.4/jquery.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.6/jquery-ui.min.js"></script>
+<script src="jquery-ui-themswitcher.js"></script>
+<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.6/themes/base/jquery-ui.css" rel="stylesheet">
+<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.6/themes/flick/jquery-ui.css" rel="stylesheet">
+<script>
+      $(function(){
+        
+        var burnsvilleMN = new google.maps.LatLng(44.797916,-93.278046);
+				// Creating a map
+        var map = new google.maps.Map($('#map')[0], {
+          zoom: 8,
+          center: burnsvilleMN,
+          disableDefaultUI: true,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+        
+        
+        var mapStyle = [
+          {
+            featureType: "all",
+            elementType: "all",
+            stylers: [
+              { invert_lightness: true }
+            ]
+          },{
+            featureType: "road",
+            elementType: "all",
+            stylers: [
+              { hue: "#0800ff" }
+            ]
+          },{
+            featureType: "poi",
+            elementType: "all",
+            stylers: [
+              { hue: "#1900ff" }
+            ]
+          },{
+            featureType: "water",
+            elementType: "all",
+            stylers: [
+              { hue: "#0008ff" }
+            ]
+          }
+        ];
+        
+        var mapTheme = new google.maps.StyledMapType(mapStyle, { name: "Custom Map Theme" });
+        map.mapTypes.set('maptheme', mapTheme);
+        map.setMapTypeId('maptheme');
+        
+        
+        var boundsChange = google.maps.event.addListener(map, "bounds_changed", function() {
+  				var bounds = map.getBounds();
+  				var southWest = bounds.getSouthWest();
+  				var northEast = bounds.getNorthEast();
+  				var lngSpan = northEast.lng() - southWest.lng();
+  				var latSpan = northEast.lat() - southWest.lat();
+  				var markers = [];
+  				for (var i = 0; i < 10; i++) {
+  			    var latLng = new google.maps.LatLng(southWest.lat() + latSpan * Math.random(),
+  			        southWest.lng() + lngSpan * Math.random());
+  					var marker = new google.maps.Marker({
+                position: latLng,
+                map: map
+            });
+          
+  					markers[i] = marker;
+  				}
+  				google.maps.event.removeListener(boundsChange);
+  				
+  				$(markers).each(function(i,marker){
+  					$("<li />").addClass('ui-state-default ui-corner-all')
+  						.html("Point "+i)
+  						.click(function(){
+  							message.open(marker, i);
+  						})
+  						.appendTo("#list");
 
-				// setup 10 random points
-				var bounds = map.getBounds();
-				var southWest = bounds.getSouthWest();
-				var northEast = bounds.getNorthEast();
-				var lngSpan = northEast.lng() - southWest.lng();
-				var latSpan = northEast.lat() - southWest.lat();
-				var markers = [];
-				for (var i = 0; i < 10; i++) {
-				    var point = new GLatLng(southWest.lat() + latSpan * Math.random(),
-				        southWest.lng() + lngSpan * Math.random());
-					marker = new GMarker(point);
-					map.addOverlay(marker);
-					markers[i] = marker;
-				}
-				
-				$(markers).each(function(i,marker){
-					$("<li />").addClass('ui-state-default ui-corner-all')
-						.uiHover()
-						.html("Point "+i)
-						.click(function(){
-							displayPoint(marker, i);
+  					google.maps.event.addListener(marker, "click", function(){
+  						message.open(this, i);
+  					});
+  				});
+  			});
+  			
+  			var list = $("#list").css({ top:'10px', right:'10px' }).appendTo(document.body);
+			  map.controls[google.maps.ControlPosition.RIGHT_TOP].push(list[0]);
+
+  			function MessageWindow(){
+  			  this.setMap(map);
+  			}
+				MessageWindow.prototype = new google.maps.OverlayView();
+				MessageWindow.prototype.onAdd = function() {
+				  this.$div_ = $('<div id="message" />').appendTo(this.getPanes().floatPane);
+        }
+        MessageWindow.prototype.draw = function() {
+          var me = this;
+          var $div = this.$div_;
+          var point = this.getProjection().fromLatLngToDivPixel(this.latlng_);
+          if (point) {
+            $div.css({ left: point.x, top: point.y });
+          }
+        };
+        MessageWindow.prototype.remove = function() {
+          if (this.$div_) {
+            this.$div_.remove();
+            this.$div_ = null;
+          }
+        };
+        MessageWindow.prototype.getPosition = function() {
+         return this.latlng_;
+        };
+        
+        var openTimeout;
+        MessageWindow.prototype.open = function(marker, index) {
+          clearTimeout(openTimeout);
+				  $div = this.$div_.stop().css('opacity',1).hide().empty();
+				  this.latlng_ = marker.position;
+          this.draw();
+          
+          var closeButton = $(iconHTML("close"))
+						.click(function(){ 
+						  $div.fadeOut(); 
 						})
-						.appendTo("#list");
-						
-					GEvent.addListener(marker, "click", function(){
-						displayPoint(this, i);
-					});
-				});
-				
-				$('<div id="message" />').appendTo(map.getPane(G_MAP_FLOAT_SHADOW_PANE));
-				
-				function displayPoint(marker, index){
-					$("#message").hide().empty();
+						.css({ top:'5px', right:'5px' });
 					
-					var closeButton = $(iconHTML("close"))
-						.click(
-							function(){ $("#message").fadeOut(); 
-						})
-						.css({ top:'5px', right:'5px' })
-						.uiHover();
-					
-					//$("#accordion-template").clone().show()
+					// $("#accordion-template").clone().show()
 					$("#tabs-template").clone().show()
-						.attr("id","").appendTo("#message")
+						.attr("id","").appendTo($div)
 						.find(".index").html(index.toString()).end()
-						.find(".dialog").click(function(){ $("#dialog").dialog("open"); }).end()
 						.tabs()
 						.find(".ui-tabs-nav").append(closeButton);
 				
-					var moveEnd = GEvent.addListener(map, "moveend", function(){
-						var markerOffset = map.fromLatLngToDivPixel(marker.getPoint());
-						$("#message")
-							.css({ top:markerOffset.y, left:markerOffset.x })
-							.show("drop", { direction:"right" });
+					var left = map.getBounds().getSouthWest().lat();
+					var right = map.getBounds().getNorthEast().lat();
+					var offset = (right - left) * .25;
+					var newCenter = new google.maps.LatLng(marker.position.lat(), marker.position.lng()+offset);
+					map.panTo(newCenter);
+					openTimeout = setTimeout(function(){
+					  $div.show("drop", { direction:"right" });
+					}, 500);
+        };
+				var message = new MessageWindow();
 				
-						GEvent.removeListener(moveEnd);
-					});
+				var controls = $('<div id="controls" />').appendTo(document.body);
+				
+				var up = $(iconHTML("up"))
+					.css({ top:'10px', left:'32px' })
+					.click(function(){
+						map.panBy(0, -150);
+					})
+					.appendTo(controls);
 					
-					left = map.getBounds().getSouthWest().lat();
-					right = map.getBounds().getNorthEast().lat();
-					offset = (right - left) * .25;
-					map.panTo(new GLatLng(marker.getPoint().lat(), marker.getPoint().lng()+offset));
-				}
+				$(iconHTML("left"))
+					.css({ top:'32px', left:'10px' })
+					.click(function(){
+						map.panBy(-150, 0);
+					})
+					.appendTo(controls);
+					
+				$(iconHTML("right"))
+					.css({ top:'32px', left:'54px' })
+					.click(function(){
+						map.panBy(150, 0);
+					})
+					.appendTo(controls);
+					
+				$(iconHTML("down"))
+					.css({ top:'54px', left:'32px' })
+					.click(function(){
+						map.panBy(0, 150);
+					})
+					.appendTo(controls);
+					
+				$(iconHTML("plus"))
+					.css({ top:'84px', left:'32px' })
+					.click(function(){
+						map.setZoom(map.getZoom()+1);
+						$("#map-slider").slider("value", map.getZoom());
+					})
+					.appendTo(controls);
+					
+				$(iconHTML("minus"))
+					.css({ top:'325px', left:'32px' })
+					.click(function(){
+						map.setZoom(map.getZoom()-1);
+						$("#map-slider").slider("value", map.getZoom());
+					})
+					.appendTo(controls);
 				
-				GEvent.addListener(map, 'zoomend', function(){
-					$("#message").hide();
-				});
+				var zoomChanged = false;
+				$('<div id="map-slider" />').height(200)
+					.slider({ 
+						orientation: "vertical", 
+						min:0, max:19, step:1, value:map.getZoom(),
+						stop: function(){
+  						map.setZoom( $(this).slider("value") );
+						}
+					})
+					.css({ top:'115px', left:'38px', position:'absolute' })
+					.appendTo(controls);
+					
+				google.maps.event.addListener(map, "zoom_changed", function() { 
+				  zoomChanged = true; 
+					$("#map-slider").slider("value", map.getZoom());
+        });
+				
+			  map.controls[google.maps.ControlPosition.TOP_LEFT].push(controls[0]);
+			  
+				$("#themes").themeswitcher();
 				
 				$("#dialog").show().dialog({
 					autoOpen:false,
 					modal:true,
 					overlay:{ background:"#000", opacity:0.7 },
-					width:350, height:300
+					width:300, height:300
 				});
 				
-				$("#list").appendTo("#map").css({ top:'10px', right:'10px' });
-				
-				/* Build Controls */
-				$(iconHTML("up"))
-					.css({ top:'10px', left:'32px' })
-					.click(function(){
-						map.panDirection(0, 1);
-					})
-					.appendTo("#map");
-					
-				$(iconHTML("left"))
-					.css({ top:'32px', left:'10px' })
-					.click(function(){
-						map.panDirection(1, 0);
-					})
-					.appendTo("#map");
-					
-				$(iconHTML("right"))
-					.css({ top:'32px', left:'54px' })
-					.click(function(){
-						map.panDirection(-1, 0);
-					})
-					.appendTo("#map");
-					
-				$(iconHTML("down"))
-					.css({ top:'54px', left:'32px' })
-					.click(function(){
-						map.panDirection(0, -1);
-					})
-					.appendTo("#map");
-					
-				$(iconHTML("plus"))
-					.css({ top:'84px', left:'32px' })
-					.click(function(){
-						map.zoomIn();
-						$("#map-slider").slider("value", map.getZoom());
-					})
-					.appendTo("#map");
-					
-				$(iconHTML("minus"))
-					.css({ top:'325px', left:'32px' })
-					.click(function(){
-						map.zoomOut();
-						$("#map-slider").slider("value", map.getZoom());
-					})
-					.appendTo("#map");
-				
-				$("<div />").attr('id','map-slider').height(200)
-					.slider({ 
-						orientation: "vertical", 
-						min:0, max:19, step:1, value:map.getZoom(),
-						change:function(){
-							map.setZoom( $(this).slider("value") );
-						}
-					})
-					.css({ top:'115px', left:'38px', position:'absolute' })
-					.appendTo("#map");
-					
-				$("#themes").themeswitcher();
+				$(".dialog").live('click', function(){ 
+				  $("#dialog").dialog("open"); 
+				}).end();
 			});
 			
 			function iconHTML(type) {
@@ -174,22 +242,19 @@
 				return '<div class="icon ui-state-default ui-corner-all"><span class="ui-icon '+iconClass+'" /></div>';
 			}
 			
-			$.fn.uiHover = function(){
-				return this.each(function(){
-					$(this).hover(
-						function(){ $(this).addClass('ui-state-hover'); },
-						function(){ $(this).removeClass('ui-state-hover'); }
-					);
-				});
-			}
+			$("#controls .ui-state-default, #list .ui-state-default")
+			  .live('mouseover', function(){ $(this).addClass('ui-state-hover'); })
+			  .live('mouseout', function(){ $(this).removeClass('ui-state-hover'); })
+			;
 		</script>
 		<style type="text/css" media="screen">
-			body { font-size:14px; }
-			#map { float:left; width:700px; height:500px; margin-top:10px; }
+			body { font-size:16px; }
+			#map { float:left; width:500px; height:500px; margin-top:10px; }
 			#message, #list { position:absolute; }
 			#list li { list-style:none; padding:3px; margin-bottom:2px; }
 			#list li:hover { cursor:pointer; cursor:hand; }
-			.accordion, .tabs { font-size:12px!important; width:300px; }
+			#controls { position: relative; }
+			.accordion, .tabs { font-size:12px!important; width:220px; }
 			.ui-dialog, .ui-slider { font-size:12px!important; }
 			.icon { float:left; position:absolute; cursor:pointer; cursor:hand; padding:3px; }
 		</style>
@@ -203,20 +268,20 @@
 			<p>Content of the dialog</p>
 		</div>
 		
-		<ul id="accordion-template" class="accordion" style="display:none;">
-			<li>
-				<h3 class="header">Heading 1</h3>
+		<ul id="accordion-template" class="accordion" style="display:none;"> 
+			<div> 
+				<h3><a href="#">First</a></h3> 
 				<div>Point <span class="index">x</span>.</div>
-			</li>
-			<li>
-				<h3 class="header">Heading 2</h3>
+			</div> 
+			<div> 
+				<h3><a href="#">Second</a></h3> 
 				<div>Test content <a href="#" class="dialog">dialog link</a>.</div>
-			</li>
-			<li>
-				<h3 class="header">Heading 3</h3>
-				<div>Test content goes here.</div>
-			</li>
-		</ul>
+			</div> 
+			<div> 
+				<h3><a href="#">Third</a></h3> 
+				<div>Nam dui erat, auctor a, dignissim quis.</div> 
+			</div> 
+		</div>
 		
 		<div id="tabs-template" class="tabs" style="display:none">
 			<ul>
